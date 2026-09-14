@@ -1,0 +1,9 @@
+[project]
+name = "mulcia-tfm-grasp"
+version = "0.1.0"
+description = "Experimento sencillo de GRASP para el CVRP"
+requires-python = ">=3.10"
+dependencies = []
+
+[tool.uv]
+package = false
