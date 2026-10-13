@@ -1,4 +1,4 @@
-"""Criterio de ordenacion de candidatos. Sustituye esta funcion para experimentos."""
+"""Criterio de ordenacion de candidatos"""
 
 from __future__ import annotations
 
