@@ -1,44 +1,58 @@
 from __future__ import annotations
 
+import math
+
 from src.cvrp import Instance, Solution
 from src.heuristic import heuristic
-from src.utils import Constructive, Improvement, RandomManager
+from src.utils import Constructive, Improvement, RandomManager, check_deadline
 
 
 class GraspPfi(Constructive):
     """Priority-First Insertion con RCL (alpha)."""
 
-    def construct(self, instance: Instance) -> Solution:
+    def __init__(self, score_fn=heuristic):
+        self.score_fn = score_fn
+
+    def construct(self, instance: Instance, deadline: float | None = None) -> Solution:
         solution = Solution(instance)
         unrouted = set(instance.customers())
 
         while unrouted:
-            seed = max(unrouted, key=lambda c: instance.distance_matrix[instance.depot][c])
-            route = [seed]
-            load = instance.demands[seed]
-            unrouted.remove(seed)
+            check_deadline(deadline)
+            route = []
+            load = 0
 
             while unrouted:
                 candidates = []
                 for customer in unrouted:
+                    check_deadline(deadline)
 
                     if load + instance.demands[customer] > instance.capacity:
                         continue
 
-                    position, _cost = _best_insertion(instance, route, customer)
+                    best_position = 0
+                    best_score = None
+                    for position in range(len(route) + 1):
+                        check_deadline(deadline)
+                        score = self.score_fn(
+                            instance=instance,
+                            solution=solution.routes + [route],
+                            unassigned=list(unrouted),
+                            route_index=len(solution.routes),
+                            customer=customer,
+                            position=position,
+                        )
+                        if not math.isfinite(score):
+                            raise ValueError("score_fn must return a finite score")
+                        if best_score is None or score < best_score:
+                            best_score = score
+                            best_position = position
 
-                    score = heuristic(
-                        instance=instance,
-                        solution=solution.routes + [route],
-                        unassigned=list(unrouted),
-                        route_index=len(solution.routes),
-                        customer=customer,
-                        position=position,
-                    )
-
-                    candidates.append((score, customer, position))
+                    candidates.append((best_score, customer, best_position))
 
                 if not candidates:
+                    if not route:
+                        raise ValueError("invalid instance: no unassigned customer fits an empty route")
                     break
 
                 customer, position = select_rcl_candidate(candidates, instance.alpha)
@@ -70,38 +84,26 @@ class TwoOpt(Improvement):
     """2-opt intra-ruta, first improvement."""
 
     def improve(self, solution: Solution) -> None:
+        self.improve_anytime(solution)
+
+    def improve_anytime(self, solution, deadline=None, on_improvement=None):
         improved = True
         while improved:
             improved = False
             for route in solution.routes:
-                if _improve_route(solution.instance, route):
+                check_deadline(deadline)
+                if _improve_route(solution.instance, route, deadline):
                     improved = True
+                    if on_improvement is not None:
+                        on_improvement(solution)
 
 
-def _best_insertion(instance: Instance, route: list[int], customer: int) -> tuple[int, float]:
-    best_pos = 0
-    best_cost = _insertion_cost(instance, route, customer, 0)
-    for pos in range(1, len(route) + 1):
-        cost = _insertion_cost(instance, route, customer, pos)
-        if cost < best_cost:
-            best_pos = pos
-            best_cost = cost
-    return best_pos, best_cost
-
-
-def _insertion_cost(instance: Instance, route: list[int], customer: int, pos: int) -> float:
-    depot = instance.depot
-    matrix = instance.distance_matrix
-    prev_node = depot if pos == 0 else route[pos - 1]
-    next_node = depot if pos == len(route) else route[pos]
-    return matrix[prev_node][customer] + matrix[customer][next_node] - matrix[prev_node][next_node]
-
-
-def _improve_route(instance: Instance, route: list[int]) -> bool:
+def _improve_route(instance: Instance, route: list[int], deadline: float | None = None) -> bool:
     matrix = instance.distance_matrix
     depot = instance.depot
     for i in range(len(route)):
         for j in range(i + 1, len(route)):
+            check_deadline(deadline)
             prev_node = depot if i == 0 else route[i - 1]
             next_node = depot if j == len(route) - 1 else route[j + 1]
             delta = (
