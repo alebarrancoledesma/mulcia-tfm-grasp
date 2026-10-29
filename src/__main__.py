@@ -1,6 +1,7 @@
 import argparse
 import json
 import math
+import os
 from pathlib import Path
 
 from src.cvrp import read_vrp
@@ -10,8 +11,10 @@ from src.operators import GraspPfi, TwoOpt
 from src.utils import Grasp, RandomManager
 
 PROJECT_PATH = Path(__file__).resolve().parent
-INPUT_DIR = PROJECT_PATH / 'input'
-OUTPUT_DIR = PROJECT_PATH / 'output'
+REPOSITORY = PROJECT_PATH.parent
+ARTIFACTS = Path(os.environ.get('TFM_ARTIFACTS_DIR', REPOSITORY.parent / 'mulcia-tfm-artifacts'))
+INPUT_DIR = ARTIFACTS / 'inputs' / '03-grasp' / '01-instances'
+OUTPUT_DIR = REPOSITORY / 'outputs'
 
 
 def positive_float(value):

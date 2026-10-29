@@ -22,7 +22,7 @@ class Contracts(unittest.TestCase):
     def test_basic_hash_and_regression(self):
         self.assertEqual(hashlib.sha256((ROOT / 'src/heuristic.py').read_bytes()).hexdigest(),
                          'fb28997aaf3b251e947ac0b57cd00f7a9341d607af686e5282d1447ab579217a')
-        instance = read_vrp(str(ROOT / 'src/input/E-n22-k4.vrp'))
+        instance = read_vrp(str(ROOT / 'tests/data/E-n22-k4.vrp'))
         RandomManager.set_seed(7)
         result = Grasp(GraspPfi(), TwoOpt(), iterations=5).execute(instance)
         RandomManager.set_seed(7)
@@ -122,7 +122,7 @@ class Contracts(unittest.TestCase):
             TwoOpt().improve_anytime(initial, deadline=time.perf_counter() - 1)
 
     def test_short_real_deadline(self):
-        instance = read_vrp(str(ROOT / 'src/input/E-n22-k4.vrp'))
+        instance = read_vrp(str(ROOT / 'tests/data/E-n22-k4.vrp'))
         grasp = Grasp(GraspPfi(custom), TwoOpt(), iterations=None, time_limit=0.02)
         result = grasp.execute(instance)
         self.assertLess(grasp.metrics['elapsed'], 1)
